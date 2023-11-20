@@ -1,34 +1,23 @@
-# DNB Common Reporting - Capital and Liquidity Requirements
+# AACB LimitS
 
-## Purpose
-Phase 1 of this project is to build a tool that calculates the responses
-to the DNB Common Report Investment Firm Class 2 Independent report.
+## Objective
+The goal of this project is to develop a forecasting tool that calculates and predicts values within the 'limits' column of the daily haircut report provided by ABN Clearing. Our aim is to adjust our financial position in a manner that avoids exceeding the AACB limits, ideally achieving this in real-time.
 
-The main reporting topics are:
+Key Focus Areas:
 
-1. Capital Requirements (K-NPR and K-RTF)
-2. Liquidity Requirements
-3. Daily Traded Flow (K-DTF)
+1. Estimating Ineligible Financials:
+  1.1. Calculation of cash balance.
+  1.2. Calculation of payable and receivable balances.
+2. Daily Comparison:
+  Compare the previous day's (T-1) estimates with the actual AACB figures on day T to identify any discrepancies.
+3 FCCMDEF Dashboard Replication:
+  Replicate the dashboard found in the FCCMDEF file.
+4. Estimate the 'History' row in the daily haircut report at the end of day T-1.
 
-Phase 2 of the project will be ongoing semi real-time (every 5 minutes)
-calculations of relevant limits, displays them for Risk and Trading 
-review, and to setup monitoring and alerting of the limits and the system.
+## Implementation Details and Resources:
 
-## Details
-GenXs positions are used as the basis of our position. 
+The foundation of our position calculations is based on GenXs positions.
 
-Excluding ISINs from calculations is permitted with reasoning.
+Daily haircut reports and FCCMDEF files are utilized for backtesting purposes.
 
 
-## Dependencies:
-The table used as the basis for bond meta data to be analyzed "sfi_transactions.bloomberg_risk" 
-is populated daily at 18:31 by https://github.com/STX-Fixed-Income/bb_tw_importer.
-
-Our prices are populated roughly every half-hour throughout the day 
-whenever a new emails comes by https://github.com/STX-Fixed-Income/icbc_reader. 
-
-Currently our last price update is 18:30.
-
-Both of the above item use TW which is part of TOMS. 
-
-GenXs FX rates are kept up to date by [fxrates](https://github.com/STX-Fixed-Income/fxrates) everyday (08:00)
