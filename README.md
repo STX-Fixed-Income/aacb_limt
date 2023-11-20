@@ -8,18 +8,19 @@ Key Focus Areas:
 
 1. Estimating Ineligible Financials:
    
-  1.1. Calculation of cash balance.
-  1.2. Calculation of payable and receivable balances.
+   1.1. Calculation of cash balance.
   
-3. Daily Comparison:
+   1.2. Calculation of payable and receivable balances.
+  
+2. Daily Comparison:
    
-  Compare the previous day's (T-1) estimates with the actual AACB figures on day T to identify any discrepancies.
+   Compare the previous day's (T-1) estimates with the actual AACB figures on day T to identify any discrepancies.
   
-3 FCCMDEF Dashboard Replication:
+3. FCCMDEF Dashboard Replication:
 
-  Replicate the dashboard found in the FCCMDEF file.
-  
-5. Estimate the 'History' row in the daily haircut report at the end of day T-1.
+   Replicate the dashboard found in the FCCMDEF file.
+   
+4. Estimate the 'History' row in the daily haircut report at the end of day T-1.
 
 ## Implementation Details and Resources:
 
