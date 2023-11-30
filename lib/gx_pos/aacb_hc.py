@@ -4,22 +4,36 @@ from datetime import timedelta
 import lib.db.db_queries as dbq
 from lib.log import file_log as logging
 from lib.utils.utils import printdf
-
-def get_hc_data(bf_cnx, sfi_cnx, date_T1):
+N = 1
+def get_hc_data(bf_cnx, sfi_cnx, day_T):
     logger = logging.FileLog.get_logger(name='__fccmdef__')
 
     fccmdef = pd.read_sql(dbq.get_aacb_fccmdef_qry(), bf_cnx)
     liqcdef = pd.read_sql(dbq.get_aacb_liqcdef_qry(), bf_cnx)
 
-    fccm_df = fccmdef[fccmdef['file_date'].dt.date == date_T1]
-    liqc_df = liqcdef[liqcdef['file_date'].dt.date == date_T1]
+    fccm_df = fccmdef[fccmdef['file_date'].dt.date == day_T]
+    liqc_df = liqcdef[liqcdef['file_date'].dt.date == day_T]
 
-    cash_balance = get_cash_baln(bf_cnx, sfi_cnx, date_T1)
-    cash_balance_T1 = -30000881
-    logger.info(f"The cash balance AACB on {date_T1} is {round(cash_balance_T1, 2)}")
+    cash_baln_T = get_cash_baln(bf_cnx, sfi_cnx, day_T)
+    print(f'the aacb cash pay rec on date {day_T} and computed based on data are xxxxxxx and {cash_baln_T}')
 
-    inelig_fin = cal_inelig_fin(fccm_df, cash_balance, logger)
-    logger.info(f"On {date_T1} the Ineligibility fin AACB is {round(inelig_fin, 2)}")
+    print(f'the aacb cash balance on date {day_T} and computed based on data are xxxxxx and {cash_baln_T}')
+
+    for i in range(1,N+1):
+        cash_baln_Tn_ = get_cash_baln(bf_cnx, sfi_cnx, (day_T + timedelta(days=-i)))
+
+        # print(f'the aacb cash balance on date {day_T} and computed based on data are xxxxxx and {cash_baln_TN_}')
+        print(f'the aacb cash balance on date {day_T + timedelta(days=-i)} and computed based on data are xxxxxx and {cash_baln_Tn_}')
+
+        # print(f'the aacb cash pay rec on date {day_T} and computed based on data are xxxxxxx and {cash_baln_TN_}')
+        print(f'the aacb cash pay rec on date {day_T + timedelta(days=-i)} and computed based on data are xxxxxxx and {cash_baln_Tn_}')
+
+
+    # cash_balance_T1 = -30000881
+    # logger.info(f"The cash balance AACB on {day_T} is {round(cash_balance_T1, 2)}")
+
+    inelig_fin = cal_inelig_fin(fccm_df, cash_baln_T, logger)
+    logger.info(f"On {day_T} the Ineligibility fin AACB is {round(inelig_fin, 2)}")
 
     return True
 
@@ -39,17 +53,17 @@ def cal_inelig_fin(fccm_df, cash_baln,logger):
 
     logger.info(f"Discrepancy of the cash_balance is {round(cash_baln_t - cash_baln, 2)}")
 
-    print(credit_util, eligible_col, inelig_fin)
+    # print(credit_util, eligible_col, inelig_fin)
     # print(f"Discrepancy of the cash_balance is {round(cash_balance_t - cash_balance, 2)}")
     return inelig_fin
 
 def get_cash_baln(bf_cnx, sfi_cnx, day_T1):
+    # data source: bankingfiles.interestclientlevel
+    df_cash_bln = pd.read_sql(dbq.get_aacb_cash_balance(), bf_cnx)
 
-    df_cash_bln = pd. read_sql(dbq.get_aacb_cash_balance(), bf_cnx)
-
-    # get the cash balance at query date
+    # get the cash balance at day T with the data from T-1
     df_cash_bln = df_cash_bln[(df_cash_bln['valuedate'].dt.date == day_T1) & (df_cash_bln['processingdate'].dt.date == day_T1)]
-
+    # printdf(df_cash_bln.head(20))
     fx_mapping_dict = get_fx_rates(sfi_cnx)
 
     df= df_cash_bln.copy()
@@ -64,7 +78,7 @@ def get_cash_baln(bf_cnx, sfi_cnx, day_T1):
     sum_d = df['value_in_eur'][np.where(df['grossbalanceamount_valuedc'] == 'D', True, False)].sum()
 
     cash_baln = round(sum_c-sum_d,2)
-    print(cash_baln)
+
     return cash_baln
 
 def get_fx_rates(sfi_cnx):

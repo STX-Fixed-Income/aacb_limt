@@ -9,7 +9,7 @@ import pandas as pd
 
 
 def parse_arg():
-    parser = argparse.ArgumentParser(description="dnb_corep display capital and liquidity requirement in real-time or"
+    parser = argparse.ArgumentParser(description="aacb limit estimation in real-time or"
                                                  "for a given query_date",
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-d", "--debug", action='count', default=0, help="enable debugging")
