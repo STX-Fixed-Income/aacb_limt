@@ -228,15 +228,11 @@ def get_trades_qry(startdate, enddate):
     return q
 
 def get_intratrades_qry(qdate):
-    # Only interested in real trades, exchange or via platform/OTC but not simulated traded (internal rebookings)
     q = f'''
         SELECT 
+            date(p.DateTimeSaved) as date,
             COALESCE(c.isin,i.info2, c.symbol) as isin,
             c.symbol,
-            case 
-                when c.contracttype = 2 then concat(c.symbol, ' ', i.Description) 
-                else i.Description
-            end as Description, 
             sum(Overnight) as Overnight,
             cc.symbol as currency,
             1/coalesce(fx.Rate, 1.00) AS fx_rate,
@@ -245,30 +241,25 @@ def get_intratrades_qry(qdate):
             sum((overnight + bought - sold) * 0.01) as cs_pos,
             abs(sum(overnight)) as abs_over,
             abs(sum((overnight + bought - sold))) as abs_pos,
-        
             abs(sum((overnight + bought - sold))) - abs(sum(overnight)) as diff_exposure,
-        
+            
             CASE 
                 when abs(sum(overnight + bought - sold) - sum(overnight)) <> 0 then 1
                 else 0
             END as filter_col
+            
         FROM tradingsystem.positions p
         LEFT JOIN tradingsystem.instruments i ON p.InstrumentCode=i.Code
         LEFT JOIN tradingsystem.contracts c ON c.Code=i.ContractCode
         LEFT JOIN tradingsystem.contracts cc ON cc.Code=i.CurrencyContractCode
         LEFT JOIN tradingsystem.exchangerateseurobased fx ON fx.ContractCode = i.CurrencyContractCode 
                 AND DATE(p.DateTimeSaved) = DATE(fx.Date)
-        WHERE 
-        DATE(CONVERT_TZ(DateTimeSaved, '+00:00', "-02:00")) = '{qdate}'
+        WHERE date(p.DateTimeSaved)  = '{qdate}'
             and c.contracttype in (3)
-            -- and overnight + bought - sold <> 0
+            -- and overnight + bought - sold <> 0   
         group by 	
             COALESCE(c.isin,i.info2, c.symbol),
             c.symbol,
-            case 
-                when c.contracttype = 2 then concat(c.symbol, ' ', i.Description) 
-                else i.Description
-            end, 
             coalesce(fx.Rate, 1.00)
         order by c.isin
     '''
@@ -276,92 +267,64 @@ def get_intratrades_qry(qdate):
 
     return q
 
-def get_aacb_intratrades_qry(qdate):
-    # Only interested in real trades, exchange or via platform/OTC but not simulated traded (internal rebookings)
+
+def get_fccmdef_day_qry(qdate):
     q = f'''
-
-        SELECT 
-            COALESCE(t1.isin, t2.isin, t3.isin) AS isin,
-            t1.symbol,
-            t1.Description,
-            t1.Overnight,
-            t1.currency,
-            t1.fx_rate,
-            t1.constant,
-            t1.position,
-            t1.cs_pos,
-            t1.abs_over,
-            t1.abs_pos,
-            t1.diff_exposure,
-            t1.filter_col,
-            t2.bid_price,
-            t3.valuation_price,
-            t3.abn_mtm_value,
-            t3.eligible
-        FROM
-            ( -- First Query
-              SELECT 
-                COALESCE(c.isin, i.info2, c.symbol) as isin,
-                c.symbol,
-                CASE 
-                    WHEN c.contracttype = 2 THEN CONCAT(c.symbol, ' ', i.Description) 
-                    ELSE i.Description
-                END AS Description, 
-                SUM(Overnight) AS Overnight,
-                cc.symbol AS currency,
-                1/COALESCE(fx.Rate, 1.00) AS fx_rate,
-                1 AS constant,
-                SUM(overnight + bought - sold) AS position,
-                SUM((overnight + bought - sold) * 0.01) AS cs_pos,
-                ABS(SUM(overnight)) AS abs_over,
-                ABS(SUM((overnight + bought - sold))) AS abs_pos,
-                ABS(SUM((overnight + bought - sold))) - ABS(SUM(overnight)) AS diff_exposure,
-                CASE 
-                    WHEN ABS(SUM(overnight + bought - sold) - SUM(overnight)) <> 0 THEN 1
-                    ELSE 0
-                END AS filter_col
-              FROM tradingsystem.positions p
-              LEFT JOIN tradingsystem.instruments i ON p.InstrumentCode = i.Code
-              LEFT JOIN tradingsystem.contracts c ON c.Code = i.ContractCode
-              LEFT JOIN tradingsystem.contracts cc ON cc.Code = i.CurrencyContractCode
-              LEFT JOIN tradingsystem.exchangerateseurobased fx ON fx.ContractCode = i.CurrencyContractCode AND DATE(p.DateTimeSaved) = DATE(fx.Date)
-              WHERE DATE(CONVERT_TZ(DateTimeSaved, '+00:00', "-02:00")) = '{qdate}'
-
-              AND c.contracttype IN (3)
-              GROUP BY COALESCE(c.isin, i.info2, c.symbol), c.symbol, CASE WHEN c.contracttype = 2 THEN CONCAT(c.symbol, ' ', i.Description) ELSE i.Description END, COALESCE(fx.Rate, 1.00)
-            ) t1
-        LEFT JOIN
-            ( -- Second Query
-              SELECT 
-                isin_number AS isin,
-                bid_price
-              FROM bloomberg_risk 
-              WHERE date(created_at) = date(now() - interval '1 day')
-            ) t2 ON t1.isin = t2.isin
-        LEFT JOIN
-            ( -- Third Query
-              SELECT 
-                p.isin,
-                COALESCE(AVG(valuation_price), 100) AS valuation_price,
-                SUM(mark_to_market_value) AS abn_mtm_value,
-                CASE 
-                    WHEN eligibility = 100 THEN 'Y'
-                    ELSE 'N'
-                END AS eligible
-              FROM positions p
-              LEFT JOIN fccmdef f ON p.isin = f.isin AND p.processing_date = f.file_date
-              WHERE 
-                CASE
-                    WHEN extract(dow FROM date(now())) = 1 THEN processing_date::date = (now() - interval '3 day')::date
-                    WHEN extract(dow FROM date(now())) = 0 THEN processing_date::date = (now() - interval '2 day')::date
-                    ELSE processing_date::date = (now() - interval '1 day')::date
-                END
-              GROUP BY p.isin, eligibility
-            ) t3 ON t1.isin = t3.isin
-        ORDER BY t1.isin
+        SELECT
+          p.isin,
+          coalesce(avg(valuation_price),100) as valuation_price,
+          sum(mark_to_market_value) as abn_mtm_value,
+          case
+            when eligibility = 100 then 'Y'
+            else 'N'
+          end as eligible
+        FROM positions p
+        left join fccmdef f on p.isin = f.isin and p.processing_date = f.file_date
+        WHERE
+          case
+            when extract(dow from date '{qdate}') = 1 then processing_date::date = (date '{qdate}' - interval '3 days')::date
+            when extract(dow from date '{qdate}') = 0 then processing_date::date = (date '{qdate}' - interval '2 days')::date
+            else processing_date::date = (date '{qdate}' - interval '1 day')::date
+          end
+        group by p.isin, eligibility
     '''
     logger.debug(q)
 
+    return q
+
+def get_fccmdef_all_qry():
+    ## this function to get the first occurrence of each ISIN and select the most recent valuation price for each ISIN group.
+    q = '''
+        WITH recent_valuation AS (
+            SELECT 
+                p.isin,
+                p.valuation_price,  
+                CASE 
+                    WHEN f.eligibility = 100 THEN 'Y'
+                    ELSE 'N'
+                END as eligible,
+                ROW_NUMBER() OVER (PARTITION BY p.isin ORDER BY f.file_date DESC) as rn
+            FROM positions p
+            LEFT JOIN fccmdef f ON p.isin = f.isin
+        )
+        SELECT 
+            isin,
+            coalesce(avg(valuation_price), 100) as valuation_price,  
+            eligible
+        FROM recent_valuation
+        WHERE rn = 1
+        GROUP BY isin, eligible
+    '''
+    logger.debug(q)
+    return q
+
+def get_fccmdef_summary_qry():
+    ## this function to get the first occurrence of each ISIN and select the most recent valuation price for each ISIN group.
+    q = f'''
+        SELECT *
+        FROM public.fccmdef_summary
+    '''
+    logger.debug(q)
     return q
 
 def get_our_prices_qry(qdate):
@@ -477,6 +440,15 @@ def get_dnb_cqs_mapping():
 
     return q
 
+def get_abn_breaks_qry():
+    q = f'''
+    SELECT *
+    FROM public.settlement_breaks
+    '''
+    logger.debug(q)
+
+    return q
+
 def get_aacb_fccmdef_qry():
     q = f'''
     SELECT *
@@ -485,6 +457,7 @@ def get_aacb_fccmdef_qry():
     logger.debug(q)
 
     return q
+
 
 def get_aacb_liqcdef_qry():
     q = f'''

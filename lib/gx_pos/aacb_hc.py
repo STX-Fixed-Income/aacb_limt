@@ -11,6 +11,7 @@ def get_hc_data(bf_cnx, sfi_cnx, day_T):
     fccmdef = pd.read_sql(dbq.get_aacb_fccmdef_qry(), bf_cnx)
     liqcdef = pd.read_sql(dbq.get_aacb_liqcdef_qry(), bf_cnx)
 
+
     fccm_df = fccmdef[fccmdef['file_date'].dt.date == day_T]
     liqc_df = liqcdef[liqcdef['file_date'].dt.date == day_T]
 
