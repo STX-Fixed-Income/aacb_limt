@@ -11,7 +11,6 @@ def get_hc_data(bf_cnx, sfi_cnx, day_T):
     fccmdef = pd.read_sql(dbq.get_aacb_fccmdef_qry(), bf_cnx)
     liqcdef = pd.read_sql(dbq.get_aacb_liqcdef_qry(), bf_cnx)
 
-
     fccm_df = fccmdef[fccmdef['file_date'].dt.date == day_T]
     liqc_df = liqcdef[liqcdef['file_date'].dt.date == day_T]
 
@@ -42,9 +41,6 @@ def cal_inelig_fin(fccm_df, cash_baln,logger):
     cash_baln_t = -30015163.11
     baln_pay_rec = 5463828.97
     mtm_net = 0
-    # TODO import the cash_balance and baln_pay_rec from FCCMDEF file at day T @Dan
-    # TODO import the mtm_net from SACCRDEF file at day T @Dan
-
 
     eligible_col = (fccm_df[fccm_df['index'] == 'N']['eligible_col']).sum()
     short_stock = fccm_df['mtm_short_bcy'].sum()

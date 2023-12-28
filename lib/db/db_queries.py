@@ -72,6 +72,7 @@ def get_genxs_postions_qry(qdate):
         SUM(overnight) + SUM(bought) - SUM(sold) AS current_position,
         cc.symbol AS currency,
         c.symbol,
+        c.contractsize,
         1/coalesce(fx.Rate, 1.00) AS fx_rate,
         CASE 
             WHEN c.contracttype = 3 THEN 'Bond' 
@@ -233,6 +234,7 @@ def get_intratrades_qry(qdate):
             date(p.DateTimeSaved) as date,
             COALESCE(c.isin,i.info2, c.symbol) as isin,
             c.symbol,
+            c.contractsize,
             sum(Overnight) as Overnight,
             cc.symbol as currency,
             1/coalesce(fx.Rate, 1.00) AS fx_rate,
@@ -398,8 +400,7 @@ def get_last_paid_qry(isin):
 
 
 def get_simtrade_last_paid_qry(isin):
-    raise ValueError(f'Filter needs to be implemented for ISIN: {isin}')
-
+    # raise ValueError(f'Filter needs to be implemented for ISIN: {isin}')
     q = f'''
         SELECT  
             t.Price 
@@ -421,9 +422,7 @@ def get_simtrade_last_paid_qry(isin):
         FROM tradingsystem.`simulationtrades` t 
         WHERE t.Storno != 1
         ORDER BY 
-            `Date` DESC
-            ,DateTimeSaved DESC
-            , orderby
+        orderby
         LIMIT 1
     '''
     logger.debug(q)

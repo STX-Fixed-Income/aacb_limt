@@ -21,7 +21,11 @@ def get_positions(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
     logger.info(f"Getting most recent own-prices as of {query_date} from bankingfiles.bbg_positions")
     bidask_df = pd.read_sql(dbq.get_our_prices_qry(query_date), bf_cnx)
     bidask_df.rename(columns=str.lower, inplace=True)
-    printdf(bidask_df)
+    printdf(bidask_df.head(2))
+    print(bidask_df[bidask_df['isin'] =='XS2741415223'])
+    print(bidask_df['isin'] =='XS2741415223')
+    print(bidask_df[bidask_df['isin'] =='XS2741415223'])
+
     logger.debug(f"\n{bidask_df.head()}")
 
     pd.set_option('display.max_columns', None)
@@ -29,7 +33,7 @@ def get_positions(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
     logger.info(f"Setting market value in Euros using SFI's prices")
     for idx, row in gx_df.iterrows():
         isin= row['isin']
-        # We need a non-zero bid_price, variable value will persist thru iterations so reset it for display purposes
+        # We need a non-zero bid_price, variable value will persist the iterations so reset it for display purposes
         try:
             bid_price = None
             bid_price = bidask_df.loc[bidask_df['isin'] == isin, ['best_bid']].values[0][0]
@@ -47,7 +51,6 @@ def get_positions(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
 
     logger.info(f"Merge GenXs's {gx_df.shape[0]} positions with BBG bond data ({bonddata_df.shape[0]} rows).")
     df = gx_df.merge(bonddata_df, how='left', on='isin', suffixes=(None, '_bbg'))
-
     if df.shape[0] != gx_df.shape[0]:
         logger.info(f"Pre-merge: {gx_df.shape[0]} positions (row) and {gx_df.shape[1]} columns")
         logger.error(f"Post-merge positions changed: {df.shape[0]} positions (row) and {df.shape[1]} columns.")

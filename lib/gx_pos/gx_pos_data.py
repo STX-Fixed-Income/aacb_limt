@@ -11,7 +11,6 @@ def get_cur_pos(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
     gx_df = pd.read_sql(dbq.get_genxs_postions_qry(query_date), gx_cnx)
     gx_df.rename(columns=str.lower, inplace=True)
     logger.debug(f"\n{gx_df.head()}")
-    printdf(gx_df.head(10))
 
     logger.info(f"Getting ratings, categories, other metadata as of {query_date} from sfi_transaction.bloomberg_risk table")
     bonddata_df = pd.read_sql(dbq.get_bbg_bond_data_qry(query_date), sfi_cnx)
@@ -21,14 +20,13 @@ def get_cur_pos(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
     logger.info(f"Getting most recent own-prices as of {query_date} from bankingfiles.bbg_positions")
     bidask_df = pd.read_sql(dbq.get_our_prices_qry(query_date), bf_cnx)
     bidask_df.rename(columns=str.lower, inplace=True)
-    # printdf(bidask_df)
     logger.debug(f"\n{bidask_df.head()}")
 
     pd.set_option('display.max_columns', None)
 
     logger.info(f"Setting market value in Euros using SFI's prices")
     for idx, row in gx_df.iterrows():
-        isin= row['isin']
+        isin = row['isin']
         # We need a non-zero bid_price, variable value will persist thru iterations so reset it for display purposes
         try:
             bid_price = None
@@ -40,10 +38,8 @@ def get_cur_pos(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
             last_paid = get_last_paid(isin, logger, gx_cnx)
             logger.info(f"No bid_price for {isin} (bp:{bid_price}). Using last paid for bid_price: {last_paid}")
             bid_price = last_paid
-
-        gx_df.at[idx, 'marketvalue_eur'] = row["current_position"] * bid_price * row["fx_rate"]
+        gx_df.at[idx, 'marketvalue_eur'] = row["current_position"] * bid_price * row["fx_rate"] * 0.01
     logger.info(f"Finished setting market value in Euros.")
-
 
     logger.info(f"Merge GenXs's {gx_df.shape[0]} positions with BBG bond data ({bonddata_df.shape[0]} rows).")
     df = gx_df.merge(bonddata_df, how='left', on='isin', suffixes=(None, '_bbg'))
@@ -54,18 +50,15 @@ def get_cur_pos(query_date, sfi_cnx, gx_cnx, bf_cnx,otdb_cnx):
     logger.debug(f"\n{df.head()}")
     logger.info(f"Finished merge. Result {df.shape[0]} positions with ({df.shape[0]} rows).")
 
-
     missing_data_df = df.loc[df['isin'].isnull()]
     missing_data_df.reset_index(inplace=True)
-    printdf(df.head(10))
 
     return df
-
 
 def get_last_paid(isin, logger, cnx):
 
     price_df = pd.read_sql(dbq.get_last_paid_qry(isin), cnx)
-
+    printdf(price_df.head(2))
     if price_df.shape[0] < 1:
         logger.info(f"There is no natural last paid for {isin}. Get simtrade last paid.")
         price_df = pd.read_sql(dbq.get_simtrade_last_paid_qry(isin), cnx)
